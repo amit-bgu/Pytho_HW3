@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, FancyBboxPatch
 
@@ -419,6 +420,7 @@ class GameManager:
 
     #add here the if have no chips left func
 
+
     def print_summary(self):
         print("\n--- Game Summary ---")
         print(f"{self.player.name}: {self.player.chips} chips")
@@ -432,18 +434,45 @@ class GameManager:
         print(f"Highest chip count: {highest_chips}\n")
 
         print("Player ranking (highest to lowest):")
-        player_ranking = sorted(
-            self.sits,
-            key=lambda player: (player.chips / player.total_invested if player.total_invested else 0),
-            reverse=True
-        )
+        # Step 1: Calculate return rates
+        return_rates = []
+        for player in self.sits:
+            if player.total_invested:
+                return_rate = player.chips / player.total_invested
+            else:
+                return_rate = 0
+            return_rates.append(return_rate)
+
+        # Step 2: Check if all return rates are equal
+        all_equal = all(rate == return_rates[0] for rate in return_rates)
+
+        # Step 3: Sort by return rate, then by player preference
+        if all_equal:
+            fixed_order = [self.player.name, self.bots[0].name, self.bots[1].name]
+            player_ranking = sorted(self.sits, key=lambda player: fixed_order.index(player.name))
+        else:
+            def ranking_key(player):
+                if player.total_invested:
+                    rate = player.chips / player.total_invested
+                else:
+                    rate = 0
+                # Player gets 0, bots get 1 for tie-breaking
+                is_player = 0 if player.name == self.player.name else 1
+                return (rate, -is_player)  # -is_player so player is preferred in tie
+
+            player_ranking = sorted(self.sits, key=ranking_key, reverse=True)
+
         for rank_position, player in enumerate(player_ranking, 1):
-            return_rate = player.chips / player.total_invested if player.total_invested else 0
+            if player.total_invested:
+                return_rate = player.chips / player.total_invested
+            else:
+                return_rate = 0
             print(
                 f"{rank_position}. {player.name} - Chips: {player.chips}, Invested: {player.total_invested}, Return Rate: {return_rate:.2f}")
         self.create_graphical_summary(player_ranking)
         print("Table image with seating and rankings saved as 'table_summary.png'")
 
+    # Python
     def create_graphical_summary(self, player_ranking):
         fig, ax = plt.subplots(figsize=(8, 8))
         ax.set_facecolor('#145A32')
@@ -490,3 +519,6 @@ if __name__ == "__main__":
         else:
             break
     manager.print_summary()
+
+
+
