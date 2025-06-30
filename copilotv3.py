@@ -1,8 +1,11 @@
+#Name: Amit Ben Ari
+#ID: 322614231
+
 import random
 import numpy as np
-import matplotlib
+#import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.transforms as mtransforms
+#import matplotlib.transforms as mtransforms
 from matplotlib.patches import Circle, FancyBboxPatch
 
 class Card:
