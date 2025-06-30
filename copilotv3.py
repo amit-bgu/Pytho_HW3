@@ -2,6 +2,7 @@ import random
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.transforms as mtransforms
 from matplotlib.patches import Circle, FancyBboxPatch
 
 class Card:
@@ -28,7 +29,7 @@ class Deck:
     def shuffle(self):
 
         random.shuffle(self.cards)
-        print("[[THE DECK WAS SHUFFLED]]")
+        #print("[[THE DECK WAS SHUFFLED]]")
 
     def deal_card(self):
         return self.cards.pop(0)
@@ -472,7 +473,6 @@ class GameManager:
         self.create_graphical_summary(player_ranking)
         print("Table image with seating and rankings saved as 'table_summary.png'")
 
-    # Python
     def create_graphical_summary(self, player_ranking):
         fig, ax = plt.subplots(figsize=(8, 8))
         ax.set_facecolor('#145A32')
@@ -507,6 +507,7 @@ class GameManager:
         plt.ylim(0, 1)
         plt.savefig('table_summary.png', bbox_inches='tight', dpi=150)
         plt.close()
+
 
 if __name__ == "__main__":
     manager = GameManager()
