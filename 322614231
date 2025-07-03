@@ -416,31 +416,128 @@ class GameManager:
         print("Table image with seating and rankings saved as 'table_summary.png'")
 
     def create_graphical_summary(self, player_ranking):
-        fig, ax = plt.subplots(figsize=(8, 8))
-        ax.set_facecolor('#145A32')
-        plt.axis('off')
-        table_circle = plt.Circle((0.5, 0.5), 0.32, color='#2e8b57')
-        ax.add_patch(table_circle)
+        dpi = 150
+        desired_height_px = 405
+        desired_width_px = 532
+        height_in = desired_height_px / dpi
+        min_width_in = desired_width_px / dpi
+
         seat_coordinates = {
             1: (0.8, 0.5),
             2: (0.5, 0.15),
             3: (0.2, 0.5),
         }
         ranking_by_name = {player.name: rank + 1 for rank, player in enumerate(player_ranking)}
+        fontsize = 6
+
+        fig, ax = plt.subplots(figsize=(8, height_in), dpi=dpi)
+        ax.set_axis_off()
+        fig.patch.set_facecolor('#145A32')
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+
+        rect_info = []
+        min_x = 0.5 - 0.32
+        max_x = 0.5 + 0.32
+        min_y = 0.5 - 0.32
+        max_y = 0.5 + 0.32
+
         for seat_number, player in enumerate(self.sits, 1):
             x, y = seat_coordinates[seat_number]
             is_human_player = (player == self.player)
-            box_color = '#ffd700' if is_human_player else '#ff0000'
             label = f"You ({player.name})" if is_human_player else player.name
             chips = player.chips
             rank = ranking_by_name[player.name]
             box_text = f"{label}\n#{rank}\n{chips} chips"
-            rect = FancyBboxPatch((x - 0.09, y - 0.06), 0.18, 0.12, boxstyle="round,pad=0.02", fc=box_color, ec='black', lw=2, zorder=2)
+            lines = box_text.split('\n')
+            widths, heights = [], []
+            for line in lines:
+                text_obj = ax.text(0, 0, line, fontsize=fontsize)
+                bbox = text_obj.get_window_extent(renderer=renderer)
+                widths.append(bbox.width)
+                heights.append(bbox.height)
+                text_obj.remove()
+            total_height_px = sum(heights)
+            max_width_px = max(widths)
+            rect_info.append({
+                'x': x,
+                'y': y,
+                'is_human_player': is_human_player,
+                'box_color': '#ffd700' if is_human_player else '#ff0000',
+                'box_text': box_text,
+                'max_width_px': max_width_px,
+                'total_height_px': total_height_px
+            })
+        plt.close(fig)
+
+        max_rect_pixel_width = max(info['max_width_px'] for info in rect_info)
+        width_in = max(min_width_in, max_rect_pixel_width / dpi + 2)  # Enforce minimum width
+
+        fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
+        ax.set_facecolor('#145A32')
+        plt.axis('off')
+        table_circle = plt.Circle((0.5, 0.5), 0.32, color='#2e8b57')
+        ax.add_patch(table_circle)
+
+        min_x = 0.5 - 0.32
+        max_x = 0.5 + 0.32
+        min_y = 0.5 - 0.32
+        max_y = 0.5 + 0.32
+
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        inv = ax.transData.inverted()
+
+        for info in rect_info:
+            x, y = info['x'], info['y']
+            pixel_width = info['max_width_px']
+            pixel_height = info['total_height_px']
+
+            data_x0, data_y0 = inv.transform((0, 0))
+            data_x1, _ = inv.transform((pixel_width, 0))
+            _, data_y1 = inv.transform((0, pixel_height))
+            rect_width = data_x1 - data_x0 + 0.001
+            rect_height = data_y1 - data_y0 + 0.0005
+
+            left = x - rect_width / 2
+            right = x + rect_width / 2
+            bottom = y - rect_height / 2
+            top = y + rect_height / 2
+            min_x = min(min_x, left)
+            max_x = max(max_x, right)
+            min_y = min(min_y, bottom)
+            max_y = max(max_y, top)
+
+            info['rect_width'] = rect_width
+            info['rect_height'] = rect_height
+
+        margin_x = (max_x - min_x) * 0.035 + 0.002
+        margin_y = (max_y - min_y) * 0.035 + 0.002
+        ax.set_xlim(min_x - margin_x, max_x + margin_x)
+        ax.set_ylim(min_y - margin_y, max_y + margin_y)
+        fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        fig.canvas.draw()
+
+        for info in rect_info:
+            x, y = info['x'], info['y']
+            rect_width = info['rect_width']
+            rect_height = info['rect_height']
+            rect = FancyBboxPatch(
+                (x - rect_width / 2.2, y - rect_height / 2.2),
+                rect_width,
+                rect_height,
+                boxstyle="round,pad=0.002,rounding_size=0.008",
+                fc=info['box_color'],
+                ec='black',
+                lw=0.6,
+                zorder=2
+            )
             ax.add_patch(rect)
-            plt.text(x, y, box_text, ha='center', va='center', fontsize=16, color='black', zorder=3)
-        plt.xlim(0, 1)
-        plt.ylim(0, 1)
-        plt.savefig('table_summary.png', bbox_inches='tight', dpi=150)
+            ax.text(x, y, info['box_text'], ha='center', va='center', fontsize=fontsize, color='black', zorder=3)
+
+        plt.savefig('table_summary.png', bbox_inches='tight', dpi=dpi)
         plt.close()
 
 
